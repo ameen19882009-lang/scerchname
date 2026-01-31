@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <title>بحث بالأسماء (CSV على GitHub Pages)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --accent:#2563eb; --bg:#fff; --fg:#111827; --muted:#6b7280; --border:#e5e7eb; --hover:#f9fafb; }
+    body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 24px; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    h1 { margin: 0 0 12px; font-size: 1.35rem; }
+    .help { color: var(--muted); margin-bottom: 16px; }
+    .bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+    input[type="text"]{ flex:1 1 420px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:0.95rem; }
+    button{ background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 14px; cursor:pointer; font-size:0.95rem;}
+    button.secondary{ background:#f3f4f6; color:#111827; border:1px solid var(--border); }
+    .status{ font-size:0.9rem; color: var(--muted); margin:8px 0 16px; }
+    table{ width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    thead th{ position:sticky; top:0; background:#fafafa; border-bottom:1px solid var(--border); text-align:right; padding:10px; font-weight:600; user-select:none; cursor:pointer; }
+    tbody td{ border-top:1px solid var(--border); padding:10px; vertical-align:top; }
+    tr:hover td{ background:var(--hover); }
+    .badge{ display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size:0.8rem; }
+    .error{ background:#fef2f2; color:#991b1b; border:1px solid #fecaca; padding:12px; border-radius:8px; }
+    .sr{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>بحث بالأسماء (GitHub Pages + CSV)</h1>
+    <p class="help">
+      اكتب اسم ثنائي/جزئي. البحث يتم على عمود <code>name</code> (أو <code>الاسم</code>) ويعرض فقط النتائج المطابقة.
+      تقدر ترتّب بالنقر على عنوان أي عمود.
+    </p>
+
+    <div class="bar">
+      <label for="q" class="sr">ابحث بالاسم</label>
+      <input id="q" type="text" placeholder="ابحث بالاسم (مثال: علي محمد)" autocomplete="off" />
+      <button id="btnSearch" type="button">بحث</button>
+      <button id="btnClear" class="secondary" type="button">مسح</button>
+      <span id="count" class="badge" aria-live="polite">—</span>
+    </div>
+
+    <div id="alerts"></div>
+    <div id="feedback" class="status"></div>
+
+    <div style="overflow-x:auto">
+      <table id="grid" aria-live="polite">
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // ========= إعداد المسار لملف البيانات =========
+    // إذا ملفك اسمه "data.csv" غيّر السطر التالي إلى: const CSV_PATH = './data.csv';
+    const CSV_PATH = './data';
+
+    // ========= إعدادات =========
+    const POSSIBLE_NAME_HEADERS = ['name','Name','الاسم']; // أسماء محتملة لعمود الاسم
+    const MAX_RENDER = 5000; // حد أقصى للعرض (تحسين الأداء إذا عندك آلاف الصفوف)
+
+    // ========= أدوات عربية =========
+    function normalizeArabic(str){ if(!str) return ''; return str.toLowerCase().normalize('NFKD')
+      .replace(/[\u064B-\u0652]/g,'') // إزالة التشكيل
+      .replace(/ـ/g,'')               // إزالة التطويل
+      .replace(/[آأإ]/g,'ا')          // توحيد الألف
+      .replace(/ى/g,'ي')              // توحيد الألف المقصورة/الياء
+      .replace(/\s+/g,' ').trim(); }
+    function tokenize(q){ return normalizeArabic(q).split(' ').filter(Boolean); }
+    function containsAllTokens(haystack, tokens){ const h = normalizeArabic(haystack||''); return tokens.every(t=>h.includes(t)); }
+
+    // ========= CSV Parser (يدعم الحقول المقتبسة) =========
+    function parseCSV(text){
+      const rows=[]; let row=[]; let field=''; let inQ=false;
+      for(let i=0;i<text.length;i++){
+        const c=text[i];
+        if(inQ){
+          if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else { inQ=false; } }
+          else field+=c;
+        } else {
+          if(c==='"') inQ=true;
+          else if(c===','){ row.push(field); field=''; }
+          else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+          else if(c==='\r'){}
+          else field+=c;
+        }
+      }
+      row.push(field);
+      if(!(row.length===1 && row[0]==='')) rows.push(row);
+      return rows;
+    }
+
+    // ========= حالة عامة =========
+    let HEADERS=[], ROWS=[], nameIdx=-1;
+    let sortState = { col: 0, dir: 'asc' };
+
+    // ========= DOM =========
+    const thead = document.getElementById('thead');
+    const tbody = document.getElementById('tbody');
+    const alerts = document.getElementById('alerts');
+    const feedback = document.getElementById('feedback');
+    const qEl = document.getElementById('q');
+    const countEl = document.getElementById('count');
+    const btnSearch = document.getElementById('btnSearch');
+    const btnClear = document.getElementById('btnClear');
+
+    function setError(msg){ alerts.innerHTML = `<div class="error">${msg}</div>`; }
+    function clearAlerts(){ alerts.innerHTML = ''; }
+
+    function detectNameIndex(headers){
+      for(let i=0;i<headers.length;i++){
+        if(POSSIBLE_NAME_HEADERS.includes((headers[i]||'').trim())) return i;
+      }
+      return -1;
+    }
+
+    function renderHeader(){
+      thead.innerHTML = '';
+      const tr = document.createElement('tr');
+      HEADERS.forEach((h,i)=>{
+        const th = document.createElement('th');
+        th.textContent = h || '(بدون عنوان)';
+        th.title = 'انقر للفرز';
+        th.addEventListener('click', ()=>{
+          if(sortState.col===i){ sortState.dir = (sortState.dir==='asc') ? 'desc':'asc'; }
+          else { sortState.col=i; sortState.dir='asc'; }
+          applySearch(); // إعادة العرض بالحالة الحالية
+        });
+        if(sortState.col===i) th.textContent += sortState.dir==='asc' ? ' ▲' : ' ▼';
+        tr.appendChild(th);
+      });
+      thead.appendChild(tr);
+    }
+
+    function naturalCompare(a,b){
+      const av=(a??'').toString().trim(), bv=(b??'').toString().trim();
+      const an=Number(av), bn=Number(bv);
+      const aNum=!Number.isNaN(an)&&av!==''&&av===String(an);
+      const bNum=!Number.isNaN(bn)&&bv!==''&&bv===String(bn);
+      if(aNum&&bNum) return an-bn;
+      return av.localeCompare(bv, 'ar', {numeric:true, sensitivity:'base'});
+    }
+
+    function renderBody(rows){
+      tbody.innerHTML = '';
+      const toRender = rows.slice(0, MAX_RENDER);
+      for(const r of toRender){
+        const tr = document.createElement('tr');
+        for(let i=0;i<HEADERS.length;i++){
+          const td = document.createElement('td');
+          td.textContent = (r[i] ?? '').toString();
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      const extra = rows.length - toRender.length;
+      feedback.textContent = extra>0
+        ? `عُرض ${toRender.length} من ${rows.length} صف (مخفي ${extra} لتسريع الصفحة)`
+        : `عدد النتائج: ${rows.length}`;
+      countEl.textContent = rows.length.toLocaleString('ar-IQ');
+    }
+
+    function applySearch(){
+      const tokens = tokenize(qEl.value||'');
+      // إذا البحث فارغ: لا نعرض شيئًا
+      let filtered = tokens.length===0 ? [] : ROWS.filter(r => containsAllTokens(r[nameIdx], tokens));
+      // فرز
+      filtered = filtered.slice().sort((a,b)=>{
+        const cmp = naturalCompare(a[sortState.col], b[sortState.col]);
+        return sortState.dir==='asc' ? cmp : -cmp;
+      });
+      renderHeader();
+      renderBody(filtered);
+    }
+
+    async function loadCSV(){
+      try{
+        feedback.textContent = 'جاري التحميل من الملف data…';
+        const res = await fetch(CSV_PATH, { cache:'no-store' });
+        if(!res.ok) throw new Error('تعذر تحميل الملف "data". إذا كان اسم الملف data.csv عدِّل CSV_PATH إلى "./data.csv".');
+        const text = await res.text();
+        const rows = parseCSV(text);
+        if(!rows.length) throw new Error('الملف فارغ.');
+        HEADERS = (rows[0]||[]).map(h => (h??'').toString().trim());
+        ROWS = rows.slice(1);
+        nameIdx = detectNameIndex(HEADERS);
+        if(nameIdx===-1){
+          nameIdx = 0; // fallback: نعتبر أول عمود هو الاسم
+          setError('ملاحظة: لم أجد عمود باسم name/Name/الاسم—اعتبرت العمود الأول عمود الاسم.');
+        } else {
+          clearAlerts();
+        }
+        renderHeader();
+        // لا تعرض شيئًا حتى يكتب المستخدم
+        renderBody([]);
+        feedback.textContent = `تم التحميل. الأعمدة: ${HEADERS.join(' | ')}`;
+      }catch(e){
+        setError(e.message || 'حدث خطأ أثناء التحميل.');
+      }
+    }
+
+    // ===== أحداث =====
+    let t;
+    qEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); applySearch(); } });
+    qEl.addEventListener('input', ()=>{ clearTimeout(t); t = setTimeout(applySearch, 250); });
+    btnSearch.addEventListener('click', applySearch);
+    btnClear.addEventListener('click', ()=>{ qEl.value=''; applySearch(); qEl.focus(); });
+
+    // ===== بدء =====
+    loadCSV();
+  </script>
+</body>
+</html>
