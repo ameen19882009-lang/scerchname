@@ -5,256 +5,259 @@
   <title>بحث بالأسماء (CSV)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-
-<!-- 🔧 إضافات Responsive تُلصق فوق ستايلك الحالي بدون تغيير الألوان -->
-<style>
-  /* تمنع أي عنصر يتمدد خارج عرض الشاشة ويصنع فراغات */
-  html, body {
-    max-width: 100%;
-    overflow-x: hidden; /* يمنع السحب الجانبي */
-  }
-
-  /* عناصر عامة: خَلّي كل العناصر ما تتجاوز عرض الشاشة */
-  *, *::before, *::after {
-    box-sizing: border-box;
-    max-width: 100%;
-  }
-
-  /* الشريط العلوي للبحث يكون مرتب على الموبايل */
-  .bar {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-  }
-  .bar input[type="text"] {
-    flex: 1 1 100%;
-    width: 100%;           /* حتى “مربع البحث” يملأ العرض */
-    min-width: 0;          /* يمنع تمدد غريب */
-  }
-  .bar button {
-    white-space: nowrap;   /* الزر ما ينكسر لسطرين */
-  }
-
-  /* تغليف الجدول: يسمح بسكرول أفقي “داخل الجدول” لا الصفحة */
-  .table-wrap {
-    width: 100%;
-    overflow-x: auto;      /* لو الأعمدة كثيرة، التمرير فقط داخل الجدول */
-    -webkit-overflow-scrolling: touch; /* سلاسة على iOS */
-  }
-
-  /* الجدول: اجبر الأعمدة على التكيّف وكسر الكلمات الطويلة */
-  table {
-    width: 100%;
-    table-layout: fixed;   /* يمنع تمدد الأعمدة ويفرض توزيع متزن */
-    border-collapse: separate; /* اتركه كما كان عندك لو مغير */
-  }
-  th, td {
-    word-break: break-word;   /* كسر الكلمات الطويلة داخل الخلية */
-  }
-
-  /* رأس الجدول يبقى ثابت أعلى الجدول (لا يختفي) */
-  thead th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-  }
-
-  /* تحسينات خاصة للشاشات الصغيرة فقط */
-  @media (max-width: 600px) {
-    body { padding: 10px; }       /* تقليل هوامش الصفحة على الموبايل */
-    h1   { font-size: 1.1rem; }   /* تصغير العنوان قليلاً */
-    .help{ font-size: 0.9rem; }
-
-    th, td {
-      padding: 8px 6px;           /* خلايا أنحف على الموبايل */
-      font-size: 0.9rem;
+  <style>
+    :root{
+      --accent:#2563eb;
+      --header-bg:#1f2937;
+      --header-fg:#ffffff;
+      --row1:#ffffff;
+      --row2:#f8fafc;
+      --hover:#e5f0ff;
+      --border:#e5e7eb;
     }
 
-    /* خفّض المسافات حول الشريط */
-    .bar { gap: 6px; margin-bottom: 10px; }
-    .bar button { padding: 8px 12px; font-size: 0.9rem; }
-  }
-</style>
+    body{
+      font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+      margin:0; padding:20px;
+      background:#ffffff;
+      color:#111;
+      overflow-x:hidden;
+    }
 
+    h1{ margin-top:0; }
+
+    /* --- شريط البحث --- */
+    .bar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-bottom:15px;
+    }
+    .bar input{
+      flex:1 1 100%;
+      padding:10px;
+      border:1px solid var(--border);
+      border-radius:8px;
+      font-size:1rem;
+    }
+    .bar button{
+      padding:10px 14px;
+      border:none;
+      border-radius:8px;
+      font-size:0.95rem;
+      cursor:pointer;
+      background:var(--accent);
+      color:#fff;
+      white-space:nowrap;
+    }
+    .bar button.secondary{
+      background:#f3f4f6;
+      color:#333;
+      border:1px solid var(--border);
+    }
+
+    /* --- تغليف الجدول --- */
+    .table-wrap{
+      width:100%;
+      overflow-x:auto;
+      border:1px solid var(--border);
+      border-radius:8px;
+    }
+
+    /* --- الجدول --- */
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      table-layout:fixed; /* يمنع تمدد الشاشة بالموبايل */
+    }
+
+    thead th{
+      position:sticky;
+      top:0;
+      background:var(--header-bg);
+      color:var(--header-fg);
+      padding:12px 10px;
+      text-align:right;
+      font-weight:600;
+      border-bottom:1px solid var(--border);
+      cursor:pointer;
+      user-select:none;
+      white-space:nowrap;
+    }
+
+    tbody td{
+      padding:10px;
+      border-bottom:1px solid var(--border);
+      background:var(--row1);
+      word-break:break-word;
+    }
+    tbody tr:nth-child(even) td{
+      background:var(--row2);
+    }
+    tbody tr:hover td{
+      background:var(--hover);
+    }
+
+    .no-results{
+      margin-top:8px;
+      padding:12px;
+      background:#fff3cd;
+      border:1px solid #ffeeba;
+      color:#856404;
+      border-radius:6px;
+      display:none;
+    }
+
+    /* --- تصغير للموبايل --- */
+    @media(max-width:600px){
+      body{ padding:12px; }
+      th, td{ padding:8px 6px; font-size:0.9rem; }
+      .bar button{ padding:8px 12px; font-size:0.85rem; }
+    }
+  </style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>بحث بالأسماء (CSV)</h1>
-    <p class="help">
-      اكتب اسم ثنائي/جزئي. البحث يتم على عمود <code>الاسم</code> تحديدًا، ويعرض فقط النتائج المطابقة. إذا البحث فارغ لن تُعرض بيانات.
-    </p>
+  <h1>بحث بالأسماء</h1>
 
-    <div id="alerts"></div>
-
-    <div class="bar">
-      <label for="q" class="sr">ابحث بالاسم</label>
-      <input id="q" type="text" placeholder="ابحث بالاسم (مثال: علي محمد)" autocomplete="off" />
-      <button id="btnSearch" type="button">بحث</button>
-      <button id="btnClear" class="secondary" type="button">مسح</button>
-      <span id="count" class="badge" aria-live="polite">—</span>
-    </div>
-
-    <div id="feedback" class="status"></div>
-
-    <div class="table-wrap">
-      <table id="grid" aria-live="polite">
-        <thead id="thead"></thead>
-        <tbody id="tbody"></tbody>
-      </table>
-    </div>
-
-    <div id="emptyMsg" class="no-results">لا توجد نتائج مطابقة.</div>
+  <div class="bar">
+    <input id="q" type="text" placeholder="اكتب الاسم للبحث…" autocomplete="off">
+    <button onclick="applySearch()">بحث</button>
+    <button class="secondary" onclick="clearSearch()">مسح</button>
   </div>
 
-  <script>
-    /* ===== تعريف واضح للمسار: عدّل هنا إذا احتجت ===== */
-    const CSV_PATH = './data.csv';   // ← ملفك الحالي
+  <div class="table-wrap">
+    <table>
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
 
-    /* ===== إعدادات ===== */
-    const REQUIRED_NAME_HEADER = 'الاسم';        // نبحث حصراً بهذا العمود
-    const FALLBACK_NAME_HEADERS = ['name','Name']; // احتياط
-    const MAX_RENDER = 5000;
+  <div id="noResults" class="no-results">لا توجد نتائج مطابقة.</div>
 
-    /* ===== أدوات عربية ===== */
-    function normalizeArabic(str){ if(!str) return ''; return str.toLowerCase().normalize('NFKD')
-      .replace(/[\u064B-\u0652]/g,'').replace(/ـ/g,'').replace(/[آأإ]/g,'ا').replace(/ى/g,'ي')
-      .replace(/\s+/g,' ').trim(); }
-    function tokenize(q){ return normalizeArabic(q).split(' ').filter(Boolean); }
-    function containsAllTokens(haystack, tokens){ const h=normalizeArabic(haystack||''); return tokens.every(t=>h.includes(t)); }
+<script>
+  const CSV_PATH = './data.csv';
+  const NAME_COLUMN = 'الاسم';   // نبحث عن هذا العمود حصراً
 
-    /* ===== DOM ===== */
-    const thead=document.getElementById('thead'), tbody=document.getElementById('tbody');
-    const alerts=document.getElementById('alerts'), feedback=document.getElementById('feedback'), emptyMsg=document.getElementById('emptyMsg');
-    const qEl=document.getElementById('q'), countEl=document.getElementById('count');
-    const btnSearch=document.getElementById('btnSearch'), btnClear=document.getElementById('btnClear');
+  function normalize(ar){
+    return ar.toLowerCase()
+      .normalize("NFKD")
+      .replace(/[\u064B-\u0652]/g,'')
+      .replace(/ـ/g,'')
+      .replace(/[آأإ]/g,'ا')
+      .replace(/ى/g,'ي')
+      .trim();
+  }
 
-    function setError(msg){ alerts.innerHTML=`<div class="error">${msg}</div>`; }
-    function clearAlerts(){ alerts.innerHTML=''; }
+  function tokenize(q){
+    return normalize(q).split(/\s+/).filter(Boolean);
+  }
 
-    /* ===== اكتشاف الفاصل (، ؛ Tab) + Parser يدعم الاقتباس ===== */
-    function detectDelimiter(sampleLine){
-      const candidates=[',',';','\t']; let best=',', bestCount=0;
-      for(const d of candidates){ const c=sampleLine.split(d).length; if(c>bestCount){ bestCount=c; best=d; } }
-      return best;
+  function detectDelimiter(line){
+    let best=',', score=0;
+    for(const d of [',',';','\t']){
+      const c=line.split(d).length;
+      if(c>score){ score=c; best=d; }
     }
-    function stripBOM(text){ return text.charCodeAt(0)===0xFEFF ? text.slice(1) : text; }
-    function parseCSV(text){
-      text=stripBOM(text);
-      const firstNL=text.indexOf('\n'); const firstLine=firstNL>=0? text.slice(0,firstNL):text;
-      const delimiter=detectDelimiter(firstLine);
+    return best;
+  }
 
-      const rows=[]; let row=[], field='', inQ=false;
-      for(let i=0;i<text.length;i++){
-        const c=text[i];
-        if(inQ){
-          if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else { inQ=false; } }
-          else field+=c;
-        } else {
-          if(c==='"') inQ=true;
-          else if(c===delimiter){ row.push(field); field=''; }
-          else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
-          else if(c==='\r'){}
-          else field+=c;
-        }
-      }
-      row.push(field);
-      if(!(row.length===1 && row[0]==='')) rows.push(row);
-      return rows;
-    }
+  function parseCSV(text){
+    const firstLine = text.split(/\r?\n/)[0];
+    const delim = detectDelimiter(firstLine);
 
-    /* ===== حالة عامة ===== */
-    let HEADERS=[], ROWS=[], nameIdx=-1;
-    let sortState={ col:0, dir:'asc' };
+    const rows = [];
+    let row=[], field="", inQ=false;
 
-    function findNameIndex(headers){
-      const exact=headers.findIndex(h => (h||'').trim()===REQUIRED_NAME_HEADER);
-      if(exact!==-1) return exact;
-      for(let i=0;i<headers.length;i++){
-        if(FALLBACK_NAME_HEADERS.includes((headers[i]||'').trim())) return i;
-      }
-      return -1;
-    }
-
-    function renderHeader(){
-      thead.innerHTML=''; const tr=document.createElement('tr');
-      HEADERS.forEach((h,i)=>{
-        const th=document.createElement('th'); th.textContent=h||'(بدون عنوان)'; th.title='انقر للفرز';
-        th.addEventListener('click', ()=>{ if(sortState.col===i){ sortState.dir=(sortState.dir==='asc')?'desc':'asc'; } else { sortState.col=i; sortState.dir='asc'; } applySearch(); });
-        if(sortState.col===i) th.textContent += sortState.dir==='asc' ? ' ▲' : ' ▼';
-        tr.appendChild(th);
-      });
-      thead.appendChild(tr);
-    }
-
-    function naturalCompare(a,b){
-      const av=(a??'').toString().trim(), bv=(b??'').toString().trim();
-      const an=Number(av), bn=Number(bv); const aNum=!Number.isNaN(an)&&av!==''&&av===String(an); const bNum=!Number.isNaN(bn)&&bv!==''&&bv===String(bn);
-      if(aNum&&bNum) return an-bn;
-      return av.localeCompare(bv,'ar',{numeric:true, sensitivity:'base'});
-    }
-
-    function renderBody(rows){
-      tbody.innerHTML=''; emptyMsg.style.display='none';
-      const toRender=rows.slice(0,MAX_RENDER); const frag=document.createDocumentFragment();
-      for(const r of toRender){
-        const tr=document.createElement('tr');
-        for(let i=0;i<HEADERS.length;i++){ const td=document.createElement('td'); td.textContent=(r[i]??'').toString(); tr.appendChild(td); }
-        frag.appendChild(tr);
-      }
-      tbody.appendChild(frag);
-      const extra=rows.length-toRender.length;
-      feedback.textContent = extra>0? `عُرض ${toRender.length} من ${rows.length} صف (مخفي ${extra})` : (rows.length? `عدد النتائج: ${rows.length}` : '');
-      countEl.textContent = rows.length? rows.length.toLocaleString('ar-IQ') : '—';
-      if(rows.length===0) emptyMsg.style.display='block';
-    }
-
-    function applySearch(){
-      const tokens=tokenize(qEl.value||'');
-      if(tokens.length===0){ renderBody([]); renderHeader(); return; }
-
-      let filtered=ROWS.filter(r=>containsAllTokens(r[nameIdx], tokens));
-      filtered=filtered.slice().sort((a,b)=>{ const cmp=naturalCompare(a[sortState.col], b[sortState.col]); return sortState.dir==='asc'? cmp : -cmp; });
-
-      renderHeader(); renderBody(filtered);
-    }
-
-    async function loadCSV(){
-      try{
-        feedback.textContent = `جاري التحميل من ${CSV_PATH}…`;
-        const res=await fetch(CSV_PATH,{cache:'no-store'});
-        if(!res.ok) throw new Error(`تعذر تحميل الملف: ${CSV_PATH}`);
-        const text=await res.text();
-        const rows=parseCSV(text);
-        if(!rows.length) throw new Error('الملف فارغ.');
-        HEADERS=(rows[0]||[]).map(h=>(h??'').toString().trim());
-        ROWS=rows.slice(1);
-
-        nameIdx=findNameIndex(HEADERS);
-        if(nameIdx===-1){
-          setError('لم أجد عمودًا باسم "الاسم". عدّل عنوان العمود في أول صف (أو غيّر REQUIRED_NAME_HEADER في الكود).');
-          renderHeader(); renderBody([]); return;
-        }
-
-        sortState={ col:nameIdx, dir:'asc' };
-        clearAlerts(); renderHeader(); renderBody([]); // لا نعرض حتى يكتب المستخدم
-        feedback.textContent=`الأعمدة: ${HEADERS.join(' | ')}`;
-      }catch(e){
-        setError(e.message || 'حدث خطأ أثناء التحميل. تأكد أن الملف اسمه <b>data.csv</b> وبجانب index.html، ثم حدّث الصفحة (Ctrl+F5).');
+    for(let i=0;i<text.length;i++){
+      const c=text[i];
+      if(inQ){
+        if(c=='"'){
+          if(text[i+1]=='"'){ field+='"'; i++; }
+          else inQ=false;
+        } else field+=c;
+      } else {
+        if(c=='"') inQ=true;
+        else if(c==delim){ row.push(field); field=""; }
+        else if(c=='\n'){ row.push(field); rows.push(row); row=[]; field=""; }
+        else if(c!='\r'){ field+=c; }
       }
     }
+    row.push(field); if(row.length>1) rows.push(row);
+    return rows;
+  }
 
-    // أحداث
-    let t; qEl.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); applySearch(); }});
-    qEl.addEventListener('input', ()=>{ clearTimeout(t); t=setTimeout(applySearch,250); });
-    btnSearch.addEventListener('click', applySearch);
-    btnClear.addEventListener('click', ()=>{ qEl.value=''; applySearch(); qEl.focus(); });
+  let HEADERS=[], ROWS=[], nameIndex=-1;
 
-    // بدء
-    loadCSV();
-  </script>
+  async function loadCSV(){
+    const res = await fetch(CSV_PATH);
+    if(!res.ok){
+      alert("خطأ: لم يتم العثور على data.csv");
+      return;
+    }
+
+    const text = await res.text();
+    const rows = parseCSV(text);
+
+    HEADERS = rows[0].map(h => h.trim());
+    ROWS = rows.slice(1);
+
+    nameIndex = HEADERS.indexOf(NAME_COLUMN);
+    if(nameIndex === -1){
+      alert(`⚠️ لا يوجد عمود اسمه "${NAME_COLUMN}" في الصف الأول من CSV`);
+      return;
+    }
+
+    renderHeader();
+  }
+
+  function renderHeader(){
+    const th = HEADERS.map(h => `<th>${h}</th>`).join("");
+    document.getElementById("thead").innerHTML = `<tr>${th}</tr>`;
+  }
+
+  function renderBody(rows){
+    const tbody = document.getElementById("tbody");
+    const noRes = document.getElementById("noResults");
+
+    tbody.innerHTML = "";
+    if(!rows.length){
+      noRes.style.display = "block";
+      return;
+    }
+    noRes.style.display = "none";
+
+    tbody.innerHTML = rows.map(r =>
+      `<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`
+    ).join("");
+  }
+
+  function applySearch(){
+    const q = document.getElementById("q").value;
+    const tokens = tokenize(q);
+
+    if(tokens.length===0){ 
+      renderBody([]); 
+      return;
+    }
+
+    const results = ROWS.filter(r=>{
+      const value = normalize(r[nameIndex]||"");
+      return tokens.every(t => value.includes(t));
+    });
+
+    renderHeader();
+    renderBody(results);
+  }
+
+  function clearSearch(){
+    document.getElementById("q").value="";
+    renderBody([]);
+  }
+
+  loadCSV();
+</script>
+
 </body>
 </html>
-
-
