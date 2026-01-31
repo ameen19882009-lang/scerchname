@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <title>بحث بالأسماء (CSV على GitHub Pages)</title>
+  <title>بحث بالأسماء (CSV صغير)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -12,7 +12,7 @@
     }
     * { box-sizing: border-box; }
     body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 24px; }
-    .container { max-width: 1200px; margin: 0 auto; }
+    .container { max-width: 1100px; margin: 0 auto; }
     h1 { margin: 0 0 12px; font-size: 1.35rem; }
     .help { color: var(--muted); margin-bottom: 16px; }
     .bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
@@ -48,10 +48,10 @@
 </head>
 <body>
   <div class="container">
-    <h1>بحث بالأسماء (GitHub Pages + CSV)</h1>
+    <h1>بحث بالأسماء (CSV صغير)</h1>
     <p class="help">
       اكتب اسم ثنائي/جزئي. البحث يتم على عمود <code>الاسم</code> تحديدًا، ويعرض فقط النتائج المطابقة.
-      تقدر ترتّب بالنقر على عنوان أي عمود. إذا البحث فارغ لن تُعرض بيانات.
+      إذا البحث فارغ لن تُعرض بيانات. انقر على عنوان أي عمود للفرز.
     </p>
 
     <div id="alerts"></div>
@@ -73,16 +73,16 @@
       </table>
     </div>
 
-    <div id="emptyMsg" class="no-results" style="display:none">لا توجد نتائج مطابقة للبحث الحالي.</div>
+    <div id="emptyMsg" class="no-results" style="display:none">لا توجد نتائج مطابقة.</div>
   </div>
 
   <script>
-    /* ===== مسار الملف ===== */
-    const CSV_PATH = './data.CSV'; // لازم يطابق حروف اسم الملف تماماً
+    /* ===== مسار الملف (بنفس الحروف) ===== */
+    const CSV_PATH = './data.CSV';  // file next to index.html
 
     /* ===== إعدادات ===== */
-    const NAME_HEADER_OVERRIDE = 'الاسم'; // اعتماد هذا العمود للبحث إلزامياً
-    const POSSIBLE_NAME_HEADERS = ['الاسم','name','Name']; // احتياط
+    const REQUIRED_NAME_HEADER = 'الاسم';         // إلزامًا نبحث في هذا العمود
+    const FALLBACK_NAME_HEADERS = ['name','Name']; // احتياط إن اختلفت
     const MAX_RENDER = 5000;
 
     /* ===== أدوات عربية ===== */
@@ -90,12 +90,12 @@
       .replace(/[\u064B-\u0652]/g,'') // إزالة التشكيل
       .replace(/ـ/g,'')               // إزالة التطويل
       .replace(/[آأإ]/g,'ا')          // توحيد الألف
-      .replace(/ى/g,'ي')              // توحيد الألف المقصورة/الياء
+      .replace(/ى/g,'ي')              // توحيد الياء/الألف المقصورة
       .replace(/\s+/g,' ').trim(); }
     function tokenize(q){ return normalizeArabic(q).split(' ').filter(Boolean); }
     function containsAllTokens(haystack, tokens){ const h = normalizeArabic(haystack||''); return tokens.every(t=>h.includes(t)); }
 
-    /* ===== رسائل / DOM ===== */
+    /* ===== DOM ===== */
     const thead = document.getElementById('thead');
     const tbody = document.getElementById('tbody');
     const alerts = document.getElementById('alerts');
@@ -120,32 +120,11 @@
       return best;
     }
 
-    /* ===== Parser مرن لصف كامل (يدعم حقول مقتبسة) ===== */
-    function parseLine(line, delimiter){
-      if(delimiter === '\t'){ // تبويب: بسيط
-        return line.split('\t');
-      }
-      // اقتباس مزدوج للحقول النصية
-      const out = []; let cur = ''; let inQ = false;
-      for(let i=0;i<line.length;i++){
-        const c = line[i];
-        if(inQ){
-          if(c === '"'){
-            if(line[i+1] === '"'){ cur += '"'; i++; } else { inQ = false; }
-          } else { cur += c; }
-        } else {
-          if(c === '"'){ inQ = true; }
-          else if(c === delimiter){ out.push(cur); cur = ''; }
-          else { cur += c; }
-        }
-      }
-      out.push(cur);
-      return out;
-    }
+    /* ===== Parsing كله مرة واحدة (ملف صغير) ===== */
+    function stripBOM(text){ return text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text; }
 
-    /* ===== Parser كامل للنص ===== */
     function parseCSV(text){
-      // قصّ عينة لاكتشاف الفاصل من أول سطر
+      text = stripBOM(text);
       const firstNL = text.indexOf('\n');
       const firstLine = firstNL >= 0 ? text.slice(0, firstNL) : text;
       const delimiter = detectDelimiter(firstLine);
@@ -173,16 +152,13 @@
     let HEADERS=[], ROWS=[], nameIdx=-1;
     let sortState = { col: 0, dir: 'asc' };
 
-    function detectNameIndex(headers){
-      // أولوية للاسم الصريح
-      const idxOverride = headers.findIndex(h => (h||'').trim() === NAME_HEADER_OVERRIDE);
-      if(idxOverride !== -1) return idxOverride;
-      // وإلا ابحث ضمن المحتمل
-      for(let i=0;i<headers.length;i++){
-        if(POSSIBLE_NAME_HEADERS.includes((headers[i]||'').trim())) return i;
+    function findNameIndex(headers){
+      const exact = headers.findIndex(h => (h||'').trim() === REQUIRED_NAME_HEADER);
+      if (exact !== -1) return exact;
+      for (let i=0;i<headers.length;i++){
+        if (FALLBACK_NAME_HEADERS.includes((headers[i]||'').trim())) return i;
       }
-      // fallback: أول عمود
-      return 0;
+      return -1; // نريد نبلغ المستخدم لو ما لقيناه
     }
 
     function renderHeader(){
@@ -195,7 +171,7 @@
         th.addEventListener('click', ()=>{
           if(sortState.col===i){ sortState.dir = (sortState.dir==='asc') ? 'desc':'asc'; }
           else { sortState.col=i; sortState.dir='asc'; }
-          applySearch(); // إعادة العرض بالحالة الحالية
+          applySearch();
         });
         if(sortState.col===i) th.textContent += sortState.dir==='asc' ? ' ▲' : ' ▼';
         tr.appendChild(th);
@@ -209,7 +185,7 @@
       const aNum=!Number.isNaN(an)&&av!==''&&av===String(an);
       const bNum=!Number.isNaN(bn)&&bv!==''&&bv===String(bn);
       if(aNum&&bNum) return an-bn;
-      return av.localeCompare(bv, 'ar', {numeric:true, sensitivity:'base'});
+      return av.localeCompare(bv,'ar',{numeric:true, sensitivity:'base'});
     }
 
     function renderBody(rows){
@@ -238,11 +214,14 @@
     function applySearch(){
       const tokens = tokenize(qEl.value||'');
       if(tokens.length===0){ renderBody([]); renderHeader(); return; }
+
       let filtered = ROWS.filter(r => containsAllTokens(r[nameIdx], tokens));
+      // فرز
       filtered = filtered.slice().sort((a,b)=>{
         const cmp = naturalCompare(a[sortState.col], b[sortState.col]);
         return sortState.dir==='asc' ? cmp : -cmp;
       });
+
       renderHeader();
       renderBody(filtered);
     }
@@ -257,7 +236,17 @@
         if(!rows.length) throw new Error('الملف فارغ.');
         HEADERS = (rows[0]||[]).map(h => (h??'').toString().trim());
         ROWS = rows.slice(1);
-        nameIdx = detectNameIndex(HEADERS);
+
+        // اكتشاف عمود "الاسم"
+        nameIdx = findNameIndex(HEADERS);
+        if(nameIdx === -1){
+          setError('لم أجد عمودًا باسم "الاسم". رجاءً تأكد من عنوان العمود في أول صف.');
+          renderHeader(); renderBody([]); return;
+        }
+
+        // اجعل الفرز الافتراضي على عمود الاسم
+        sortState = { col: nameIdx, dir: 'asc' };
+
         renderHeader();
         renderBody([]); // لا نعرض شيئًا حتى يكتب المستخدم
         feedback.textContent = `تم التحميل. الأعمدة: ${HEADERS.join(' | ')}`;
@@ -266,14 +255,14 @@
       }
     }
 
-    // ===== أحداث =====
+    // أحداث
     let t;
     qEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); applySearch(); } });
     qEl.addEventListener('input', ()=>{ clearTimeout(t); t = setTimeout(applySearch, 250); });
     btnSearch.addEventListener('click', applySearch);
     btnClear.addEventListener('click', ()=>{ qEl.value=''; applySearch(); qEl.focus(); });
 
-    // ===== بدء =====
+    // بدء
     loadCSV();
   </script>
 </body>
