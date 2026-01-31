@@ -5,75 +5,76 @@
   <title>بحث بالأسماء (CSV)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+
+<!-- 🔧 إضافات Responsive تُلصق فوق ستايلك الحالي بدون تغيير الألوان -->
 <style>
-  :root {
-    --accent:#2563eb; --bg:#ffffff; --fg:#111827; --muted:#6b7280;
-    --border:#e5e7eb; --hover:#f9fafb; --head:#1f2937; --headfg:#ffffff;
-    --row1:#ffffff; --row2:#fcfcff;
+  /* تمنع أي عنصر يتمدد خارج عرض الشاشة ويصنع فراغات */
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden; /* يمنع السحب الجانبي */
   }
 
-  * {
+  /* عناصر عامة: خَلّي كل العناصر ما تتجاوز عرض الشاشة */
+  *, *::before, *::after {
     box-sizing: border-box;
-    max-width: 100%;      /* أهم شيء: يمنع العناصر تكسر الصفحة */
+    max-width: 100%;
   }
 
-  body {
-    font-family:"Segoe UI",Tahoma,Arial,sans-serif;
-    margin:0; padding:16px;
-    background:var(--bg); color:var(--fg);
-    overflow-x:hidden;    /* يمنع السحب الجانبي */
+  /* الشريط العلوي للبحث يكون مرتب على الموبايل */
+  .bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .bar input[type="text"] {
+    flex: 1 1 100%;
+    width: 100%;           /* حتى “مربع البحث” يملأ العرض */
+    min-width: 0;          /* يمنع تمدد غريب */
+  }
+  .bar button {
+    white-space: nowrap;   /* الزر ما ينكسر لسطرين */
   }
 
-  .container {
-    max-width: 100%;      /* يخلي الصفحة تنضغط */
-    margin:0 auto;
+  /* تغليف الجدول: يسمح بسكرول أفقي “داخل الجدول” لا الصفحة */
+  .table-wrap {
+    width: 100%;
+    overflow-x: auto;      /* لو الأعمدة كثيرة، التمرير فقط داخل الجدول */
+    -webkit-overflow-scrolling: touch; /* سلاسة على iOS */
   }
 
-  input[type="text"] {
-    width: 100%;          /* مهم للهواتف */
-    padding:12px;
-    font-size:1rem;
-  }
-
-  button {
-    padding:10px 14px;
-    font-size:0.95rem;
-    white-space:nowrap;   /* حتى الأزرار ما تتمطط */
-  }
-
+  /* الجدول: اجبر الأعمدة على التكيّف وكسر الكلمات الطويلة */
   table {
-    width:100%;
-    border-collapse:separate;
-    border-spacing:0;
-    background:#fff;
-    table-layout: fixed;  /* يمنع تمدد الأعمدة */
+    width: 100%;
+    table-layout: fixed;   /* يمنع تمدد الأعمدة ويفرض توزيع متزن */
+    border-collapse: separate; /* اتركه كما كان عندك لو مغير */
   }
-
   th, td {
-    word-break: break-word; /* يكسر الكلام داخل الخلية */
-    padding:10px;
+    word-break: break-word;   /* كسر الكلمات الطويلة داخل الخلية */
   }
 
+  /* رأس الجدول يبقى ثابت أعلى الجدول (لا يختفي) */
   thead th {
     position: sticky;
     top: 0;
     z-index: 2;
   }
 
-  .table-wrap {
-    width:100%;
-    overflow-x:auto;       /* يسمح بالبهدلة المنظمة بدون تمدد الصفحة */
-    border:1px solid var(--border);
-    border-radius:10px;
-  }
+  /* تحسينات خاصة للشاشات الصغيرة فقط */
+  @media (max-width: 600px) {
+    body { padding: 10px; }       /* تقليل هوامش الصفحة على الموبايل */
+    h1   { font-size: 1.1rem; }   /* تصغير العنوان قليلاً */
+    .help{ font-size: 0.9rem; }
 
-  /* جعل الصفحة كلها مناسبة للموبايل */
-  @media (max-width:600px) {
-    body { padding:10px; }
-    h1 { font-size:1.2rem; }
-    .help { font-size:0.9rem; }
-    button { padding:8px 12px; font-size:0.85rem; }
-    th, td { padding:8px 6px; font-size:0.85rem; }
+    th, td {
+      padding: 8px 6px;           /* خلايا أنحف على الموبايل */
+      font-size: 0.9rem;
+    }
+
+    /* خفّض المسافات حول الشريط */
+    .bar { gap: 6px; margin-bottom: 10px; }
+    .bar button { padding: 8px 12px; font-size: 0.9rem; }
   }
 </style>
 
@@ -255,4 +256,5 @@
   </script>
 </body>
 </html>
+
 
