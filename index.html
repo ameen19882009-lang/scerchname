@@ -71,12 +71,12 @@
   </div>
 
   <script>
-    /* ===== مسار الملف (اسمك الحالي) ===== */
-    const CSV_CANDIDATES = ['./data.csv']; // صار اسم الملف data.csv
+    /* ===== تعريف واضح للمسار: عدّل هنا إذا احتجت ===== */
+    const CSV_PATH = './data.csv';   // ← ملفك الحالي
 
     /* ===== إعدادات ===== */
-    const REQUIRED_NAME_HEADER = 'الاسم';      // نبحث حصراً بهذا العمود
-    const FALLBACK_NAME_HEADERS = ['name','Name']; // احتياط لو تغيّر مستقبلاً
+    const REQUIRED_NAME_HEADER = 'الاسم';        // نبحث حصراً بهذا العمود
+    const FALLBACK_NAME_HEADERS = ['name','Name']; // احتياط
     const MAX_RENDER = 5000;
 
     /* ===== أدوات عربية ===== */
@@ -182,21 +182,12 @@
       renderHeader(); renderBody(filtered);
     }
 
-    async function tryFetch(path){
-      const res=await fetch(path,{cache:'no-store'}); if(!res.ok) throw new Error(path); return await res.text();
-    }
-    async function getCsvText(){
-      let lastErr;
-      for(const p of CSV_CANDIDATES){
-        try{ feedback.textContent=`جاري التحميل من ${p}…`; const t=await tryFetch(p); feedback.textContent=`تم التحميل من ${p}`; return t; }
-        catch(e){ lastErr=e }
-      }
-      throw new Error(`تعذر تحميل CSV من: ${CSV_CANDIDATES.join(' , ')}`);
-    }
-
     async function loadCSV(){
       try{
-        const text=await getCsvText();
+        feedback.textContent = `جاري التحميل من ${CSV_PATH}…`;
+        const res=await fetch(CSV_PATH,{cache:'no-store'});
+        if(!res.ok) throw new Error(`تعذر تحميل الملف: ${CSV_PATH}`);
+        const text=await res.text();
         const rows=parseCSV(text);
         if(!rows.length) throw new Error('الملف فارغ.');
         HEADERS=(rows[0]||[]).map(h=>(h??'').toString().trim());
@@ -212,7 +203,7 @@
         clearAlerts(); renderHeader(); renderBody([]); // لا نعرض حتى يكتب المستخدم
         feedback.textContent=`الأعمدة: ${HEADERS.join(' | ')}`;
       }catch(e){
-        setError(`تعذر تحميل CSV. السبب: ${e.message}.<br>تأكد أن الملف اسمه <b>data.csv</b> وبنفس هذا الفولدر، وجرب فتحه مباشرة من المتصفح.`);
+        setError(e.message || 'حدث خطأ أثناء التحميل. تأكد أن الملف اسمه <b>data.csv</b> وبجانب index.html، ثم حدّث الصفحة (Ctrl+F5).');
       }
     }
 
